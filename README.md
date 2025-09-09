@@ -1,4 +1,4 @@
-# AWS Infrastructure Setup using Terraform
+# AWS RDS Infrastructure Setup using Terraform
 
 # 
 
