@@ -1,6 +1,7 @@
 # AWS RDS Infrastructure Setup using Terraform
 
-# 
+<img width="1127" height="1292" alt="diagram-export-9-9-2025-2_22_59-PM" src="https://github.com/user-attachments/assets/800a0630-4c9b-4213-b5d9-470403c4e24c" />
+
 
 This repository contains Terraform code to set up AWS infrastructure, including:
 
