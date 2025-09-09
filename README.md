@@ -263,7 +263,6 @@ ws-infra-terraform/
 
 ---
 
-## **📌 Next Steps**
 
 After completing the basic setup, future enhancements may include:
 
