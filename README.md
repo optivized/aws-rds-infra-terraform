@@ -1,205 +1,212 @@
-# AWS RDS Terraform Project
+AWS Infrastructure Setup using Terraform
 
-This Terraform project deploys **VPC, Bastion Host, Security Groups, and MySQL/PostgreSQL RDS instances** in AWS.  
-It supports **multiple environments** (staging, prod) and uses **remote state with S3 and DynamoDB** for safe collaboration.  
-RDS instances are **private**, accessible only via Bastion host.
+This repository contains Terraform code to set up AWS infrastructure, including:
 
----
+VPC (public & private subnets, NAT, route tables)
 
-## **Directory Structure**
+Bastion Host for SSH access
 
-aws-infra-terraform/
-├── modules/
-│ ├── vpc/ # VPC, subnets, IGW, NAT, route tables
-│ ├── security_groups/ # Security groups for bastion & RDS
-│ ├── bastion/ # EC2 bastion host module
-│ └── rds/ # RDS MySQL/PostgreSQL module
-├── envs/
-│ ├── staging/
-│ │ ├── main.tf
-│ │ ├── variables.tf
-│ │ └── outputs.tf
-│ └── prod/
-│ ├── main.tf
-│ ├── variables.tf
-│ └── outputs.tf
-├── global/ # S3 bucket & DynamoDB for remote state
-└── README.md
+MySQL RDS instance with parameter group management
 
-markdown
-Copy code
+Remote state management using S3 + DynamoDB
 
----
+Separate environments: staging and production
 
-## **Prerequisites**
+This guide explains the step-by-step process to deploy the infrastructure.
 
-1. Terraform v1.5+ installed.
-2. AWS CLI installed and configured.
-3. SSH key pair for Bastion host.
-4. AWS IAM user with permissions for:
-   - VPC, EC2, RDS, S3, DynamoDB.
-5. Internet access for Terraform providers.
+📌 Prerequisites
 
----
+Before starting, make sure you have:
 
-## **Step 0 — Bootstrap Global State**
+An AWS Account with required permissions
 
-The `global` directory creates **S3 bucket** for Terraform state and **DynamoDB table** for state locking.
+Terraform installed
 
-**Files:**
+AWS CLI configured
 
-- `variables.tf` → contains `env_name` variable.  
-- `staging.tfvars` / `prod.tfvars` → set `env_name` per environment.  
-- `remote_state.tf` → defines S3 bucket & DynamoDB table.  
+A valid AWS key pair for SSH access
 
-**Example usage:**
+MySQL client installed locally or on the bastion host
 
-```bash
-cd global
+🚀 Setup Steps
 
-# Bootstrap staging environment
+Step 1 — Clone the Repository
+
+git clone https://github.com/your-org/aws-infra-terraform.git
+cd aws-infra-terraform
+
+Step 2 — Go to the Global Directory
+
+The global directory manages S3 buckets and DynamoDB tables used for Terraform remote state.
+
+cd aws-infra-terraform/global
+
+2.1 Update Remote State Configuration
+
+Open remote_state.tf
+
+Update the S3 bucket name prefix and DynamoDB table name according to your project.
+
+Example:
+
+bucket         = "myproject-terraform-state"
+dynamodb_table = "myproject-terraform-lock"
+
+Step 3 — Create Remote State Resources
+
+Run the following commands to create S3 buckets and DynamoDB tables for each environment:
+
 terraform init
 terraform apply -var="env_name=staging" -state=staging.tfstate
-
-# Bootstrap prod environment
 terraform apply -var="env_name=prod" -state=prod.tfstate
-This will create separate S3 buckets and DynamoDB tables for staging and prod.
 
-Step 1 — Configure Environment Backend
-In each environment (envs/staging / envs/prod), configure Terraform to use remote state:
+This will:
 
-hcl
-Copy code
-terraform {
-  backend "s3" {
-    bucket         = "abhanan-v1-terraform-state-${var.env_name}"
-    key            = "${var.env_name}/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-locks-${var.env_name}"
-    encrypt        = true
-  }
-}
-Then run:
+Create an S3 bucket for storing Terraform state
 
-bash
-Copy code
-cd envs/staging
-terraform init -var="env_name=staging"
-This migrates your local state to S3 with state locking.
+Create a DynamoDB table for Terraform state locking
 
-Step 2 — Deploy Resources
-Select environment:
+Step 4 — Generate & Configure SSH Key Pair
 
-bash
-Copy code
-cd envs/staging  # or envs/prod
-Initialize Terraform:
+Before deploying environments, create an AWS key pair for accessing the bastion host.
 
-bash
-Copy code
+4.1 Create Key Pair
+
+aws ec2 create-key-pair --key-name myproject-key --query "KeyMaterial" --output text > myproject-key.pem
+chmod 400 myproject-key.pem
+
+Step 5 — Deploy Staging Environment
+
+Navigate to the staging directory:
+
+cd ../staging
+
+5.1 Update Backend Configuration
+
+Open backend.tf
+
+Update the S3 bucket, DynamoDB table, and key names to match the resources created in Step 3
+
+5.2 Update Configuration (Staging)
+
+Open main.tf inside the staging directory
+
+Update the SSH key name:
+
+key_name = "myproject-key"
+
+5.3 Configure Bastion Host Access
+
+In main.tf, update allowed_ssh_cidrs to allow SSH access from your IP:
+
+allowed_ssh_cidrs = ["<YOUR_PUBLIC_IP>/32"]
+
+5.4 Initialize & Apply Staging Environment
+
 terraform init
-Plan deployment:
+terraform plan
+terraform apply
 
-bash
-Copy code
-terraform plan -out plan.tfplan -var-file=../../global/staging.tfvars
-Apply deployment:
+Once successful, the staging environment will be ready.
 
-bash
-Copy code
-terraform apply plan.tfplan
-Resources deployed:
+Step 6 — Deploy Production Environment
 
-VPC with public & private subnets
+Now repeat the process for prod:
 
-Internet Gateway & NAT Gateways
+cd ../prod
 
-Security Groups for Bastion & RDS
+6.1 Update Backend Configuration
 
-Bastion EC2 host
+Open backend.tf
 
-RDS instance with parameter group
+Update the S3 bucket, DynamoDB table, and state file name accordingly.
 
-Step 3 — Access RDS via Bastion
-SSH into Bastion host:
+6.2 Update Configuration (Production)
 
-bash
-Copy code
-ssh -i ~/.ssh/<your-key>.pem ec2-user@<bastion_public_ip>
-Connect to RDS:
+Open main.tf inside the prod directory
 
-bash
-Copy code
-mysql -h <rds_endpoint> -u admin -p
-RDS is private, accessible only through Bastion.
+Update the SSH key name again:
 
-Step 4 — Outputs
-After terraform apply, Terraform will output:
+key_name = "myproject-key"
 
-Bastion Public IP
+6.3 Configure Bastion Host Access
 
-RDS Endpoint
+In main.tf, update allowed_ssh_cidrs to include your current IP.
 
-RDS Parameter Group Name
+6.4 Initialize & Apply Production Environment
 
-Step 5 — Destroy Resources
-bash
-Copy code
-terraform destroy -var-file=../../global/staging.tfvars
-Always ensure you are in the correct environment.
+terraform init
+terraform plan
+terraform apply
 
-Best Practices
-Use Terraform modules for reusable resources.
+Your production environment is now ready.
 
-Keep sensitive variables (master_password) outside code.
+Step 7 — Access the Bastion Host
 
-Use remote backend with S3 + DynamoDB.
+After applying Terraform, connect to the bastion host:
 
-Always plan before applying.
+ssh -i myproject-key.pem ec2-user@<BASTION_PUBLIC_IP>
 
-Use separate .tfvars per environment.
+Step 8 — Connect to RDS MySQL
 
-Limit RDS access via Bastion host only.
+Once inside the bastion host, install the MySQL client if required:
 
-Enable versioning on S3 bucket to prevent accidental state loss.
+sudo yum install -y mysql
 
-Next Enhancements
-Multi-AZ RDS for HA
+Connect to your RDS instance:
 
-Read replicas
+mysql -h <RDS_ENDPOINT> -u <DB_USERNAME> -p
 
-Automated failover handling
+🛠️ Directory Structure
 
-Backup lifecycle & retention
+aws-infra-terraform/
+├── README.md
+├── envs
+│   ├── prod
+│   │   ├── backend.tf
+│   │   ├── main.tf
+│   │   ├── terraform.tfvars
+│   │   └── variables.tf
+│   └── staging
+│       ├── backend.tf
+│       ├── main.tf
+│       ├── terraform.tfvars
+│       └── variables.tf
+├── global
+│   ├── prod.tfvars
+│   ├── remote_state.tf
+│   ├── staging.tfvars
+│   └── variables.tf
+└── modules
+    ├── bastion
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   └── variables.tf
+    ├── rds
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   └── variables.tf
+    ├── security_groups
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   └── variables.tf
+    └── vpc
+        ├── main.tf
+        ├── outputs.tf
+        └── variables.tf
 
-Monitoring with CloudWatch alerts
-
-Support / Contacts
-DevOps Lead: devops@example.com
-
-AWS Account Owner: aws-admin@example.com
-
-yaml
-Copy code
-
----
-
-This version is **ready for a new person**:
-
-- Explains **global bootstrap with `-state`**.  
-- Explains **remote backend configuration**.  
-- Includes full **environment deployment steps**.  
-- Covers **Bastion access**, **outputs**, **destroy**, **best practices**, and future enhancements.  
-
----
-
-If you want, I can also create **ready-to-use `.tfvars` templates** for staging and prod that a new user can just fill in and run everything.  
-
-Do you want me to create them?
+✅ Verification Checklist
 
 
 
+📌 Next Steps
 
+After completing the basic setup, future enhancements may include:
 
+Multi-AZ RDS setup
 
+RDS automated backups
 
+Private subnet endpoints
+
+Secrets Manager integration
