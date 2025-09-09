@@ -1,0 +1,69 @@
+# ========================================
+# Terraform-specific files to ignore
+# ========================================
+
+# Local .terraform directories (cache, providers, etc.)
+**/.terraform/
+
+# Terraform state files (sensitive - NEVER COMMIT)
+*.tfstate
+*.tfstate.*
+
+# Crash logs from Terraform
+crash.log
+crash.*.log
+
+# Plan files (generated locally, not needed in Git)
+*.plan
+*.tfplan
+
+# Sensitive variable override files (local secrets)
+*.tfvars
+*.tfvars.json
+
+# Lock files - optional to commit but generally ignored if per-environment
+**/.terraform.lock.hcl
+
+# Local environment overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration
+.terraformrc
+terraform.rc
+
+# ========================================
+# Project-specific ignores
+# ========================================
+
+# Ignore auto-generated directory structure outputs
+directory_structure.txt
+global/directory_structure.txt
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Python cache if any scripts are present
+__pycache__/
+*.pyc
+
+# Ignore editor/IDE settings
+.vscode/
+.idea/
+*.swp
+
+# Logs & temp files
+*.log
+*.tmp
+*.bak
+
+# ========================================
+# Allowlisting for Terraform files
+# Keep all actual Terraform configs
+# ========================================
+!*.tf
+!*.tfvars.example
+
